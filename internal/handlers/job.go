@@ -14,7 +14,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func (h *handler) JobByID(c *gin.Context) {
+// jid
+func (h *handler) JobByJID(c *gin.Context) {
 	ctx := c.Request.Context()
 	traceid, ok := ctx.Value(middleware.TraceIDKey).(string)
 	if !ok {
@@ -81,7 +82,8 @@ func (h *handler) AllJobs(c *gin.Context) {
 
 }
 
-func (h *handler) Jobs(c *gin.Context) {
+// cid
+func (h *handler) JobsByCid(c *gin.Context) {
 	ctx := c.Request.Context()
 	traceid, ok := ctx.Value(middleware.TraceIDKey).(string)
 	if !ok {
@@ -98,7 +100,7 @@ func (h *handler) Jobs(c *gin.Context) {
 		return
 	}
 
-	id := c.Param("id")
+	id := c.Param("cid")
 
 	cid, err := strconv.ParseUint(id, 10, 64)
 	if err != nil {
@@ -107,7 +109,6 @@ func (h *handler) Jobs(c *gin.Context) {
 	}
 
 	jobData, err := h.service.ViewJob(ctx, cid)
-	fmt.Println("[[[[[[[[[[]]]]]]]]]]", err, jobData)
 	if err != nil {
 		log.Error().Err(err).Str("trace id", traceid)
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
@@ -171,7 +172,7 @@ func (h *handler) CreateJobs(c *gin.Context) {
 
 }
 
-func (h *handler) JobAppById(c *gin.Context) {
+func (h *handler) JobApplicationById(c *gin.Context) {
 	ctx := c.Request.Context()
 	traceid, ok := ctx.Value(middleware.TraceIDKey).(string)
 	if !ok {
@@ -206,6 +207,7 @@ func (h *handler) JobAppById(c *gin.Context) {
 		return
 	}
 	app, err := h.service.ApplyJobs(ctx, application)
+
 	if err != nil {
 		log.Error().Err(err).Str("trace id", traceid)
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
@@ -215,4 +217,5 @@ func (h *handler) JobAppById(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, app)
+	fmt.Println("")
 }

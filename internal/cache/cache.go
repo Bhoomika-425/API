@@ -13,11 +13,11 @@ import (
 type RDB struct {
 	rdb *redis.Client
 }
+//go:generate mockgen -source=cache.go -destination=cache_mock.go -package=cache
 type Cache interface {
 	AddingtoCache(ctx context.Context, jid uint, jobdata models.Jobs) error
 	GettingCacheData(ctx context.Context, jid uint) (string, error)
 }
-
 func NewRDBLayer(rdb *redis.Client) Cache {
 	return &RDB{
 		rdb: rdb,

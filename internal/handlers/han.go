@@ -26,16 +26,22 @@ func API(a auth.UserAuth, svc service.UserService) *gin.Engine {
 	r.Use(m.Log(), gin.Recovery())
 
 	r.GET("/check", Check)
+
 	r.POST("/signup", h.SignUp)
 	r.POST("/signin", h.Login)
-	r.POST("/add", m.Authenticate(h.AddCompany))
-	r.GET("/view/allcomp", m.Authenticate(h.ViewAllCompanies))
+
+	r.POST("/addCompany", m.Authenticate(h.AddCompany))
+	r.GET("/view/allcompany", m.Authenticate(h.ViewAllCompanies))
 	r.GET("/viewcompany/:id", m.Authenticate(h.ViewCompany))
-	r.POST("/add/:cid", m.Authenticate(h.CreateJobs))
-	r.GET("/view/all", m.Authenticate(h.AllJobs))
-	r.GET("/job/view", m.Authenticate(h.Jobs))
-	r.GET("/viewjob/:cid", m.Authenticate(h.JobByID))
-	r.POST("/jobApp", m.Authenticate(h.JobAppById))
+
+	r.POST("/addJobs/:cid", m.Authenticate(h.CreateJobs))
+	r.GET("/view/alljobs", m.Authenticate(h.AllJobs))
+
+	r.GET("/viewjob/:cid", m.Authenticate(h.JobsByCid)) //
+
+	r.GET("/jobs/:id", m.Authenticate(h.JobByJID))     //
+
+	r.POST("/jobApp", m.Authenticate(h.JobApplicationById)) //null
 	return r
 
 }

@@ -24,7 +24,7 @@ type UserRepo interface {
 	CreateUserJob(ctx context.Context, jobData models.Jobs) (models.NewJobResponse, error)
 	Jobbycid(ctx context.Context, cid uint64) ([]models.Jobs, error)
 	FetchAllJobs(ctx context.Context) ([]models.Jobs, error)
-	Jobbyjid(ctx context.Context, jid uint64) (models.Jobs, error)
+	Jobbyjid(ctx context.Context, jid uint64) ([]models.Jobs, error)
 	CreateApplication(ctx context.Context, jid uint) (models.Jobs, error)
 }
 

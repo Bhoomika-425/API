@@ -1,6 +1,7 @@
 package database
 
 import (
+	"errors"
 	"fmt"
 	"project/internal/models"
 
@@ -46,6 +47,11 @@ func DbConnection() (*gorm.DB, error) {
 
 // passwoed hashing
 func Passwordhashing(password string) (string, error) {
+
+	if password == "" {
+		return "", errors.New("error password must not be empty")
+	}
+
 	hashedPass, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return "", fmt.Errorf("error in hashing the password : %w", err)

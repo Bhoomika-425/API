@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"sync"
 
@@ -12,10 +13,10 @@ import (
 	"gorm.io/gorm"
 )
 
-func (s *Service) ViewJobById(ctx context.Context, jid uint64) (models.Jobs, error) {
+func (s *Service) ViewJobById(ctx context.Context, jid uint64) ([]models.Jobs, error) {
 	jobData, err := s.UserRepo.Jobbyjid(ctx, jid)
 	if err != nil {
-		return models.Jobs{}, nil
+		return []models.Jobs{}, nil
 	}
 	return jobData, nil
 }
@@ -116,8 +117,10 @@ func (s *Service) ApplyJobs(ctx context.Context, applications []models.NewUserAp
 			defer wg.Done()
 			var jobdata models.Jobs
 			val, err := s.rdb.GettingCacheData(ctx, v.ID)
+			fmt.Println("[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]", val)
 			if err == redis.Nil {
 				dbData, err := s.UserRepo.CreateApplication(ctx, v.ID)
+				fmt.Println("////////////////////", dbData)
 				if err != nil {
 					return
 				}
@@ -178,6 +181,7 @@ func (s *Service) CompareAndCheck(ctx context.Context, appData models.NewUserApp
 
 	a, err := strconv.Atoi(val.Minexp)
 	if err != nil {
+		fmt.Println("[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]", val.Minexp)
 		panic("parsing error")
 	}
 	if appData.Jobs.Experience >= uint(a) {
@@ -189,6 +193,7 @@ func (s *Service) CompareAndCheck(ctx context.Context, appData models.NewUserApp
 	// }
 	b, err := strconv.Atoi(val.MinNp)
 	if err != nil {
+		fmt.Println("[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]", val.MinNp)
 		panic("parsing error")
 	}
 

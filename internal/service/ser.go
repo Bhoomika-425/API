@@ -23,11 +23,11 @@ type UserService interface {
 	AddCompanyDetails(ctx context.Context, companyData models.Company) (models.Company, error)
 	ViewAllCompanies(ctx context.Context) ([]models.Company, error)
 	ViewCompanyDetails(ctx context.Context, cid uint64) (models.Company, error)
-	ViewJob(ctx context.Context, cid uint64) ([]models.Jobs, error)
 
+	ViewJob(ctx context.Context, cid uint64) ([]models.Jobs, error)
 	AddJobDetails(ctx context.Context, jobRequest models.NewJobRequest, cid uint) (models.NewJobResponse, error)
 	ViewAllJobs(ctx context.Context) ([]models.Jobs, error)
-	ViewJobById(ctx context.Context, jid uint64) (models.Jobs, error)
+	ViewJobById(ctx context.Context, jid uint64) ([]models.Jobs, error)
 	ApplyJobs(ctx context.Context, application []models.NewUserApplication) ([]models.NewUserApplication, error)
 }
 

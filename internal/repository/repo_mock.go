@@ -160,10 +160,10 @@ func (mr *MockUserRepoMockRecorder) Jobbycid(ctx, cid any) *gomock.Call {
 }
 
 // Jobbyjid mocks base method.
-func (m *MockUserRepo) Jobbyjid(ctx context.Context, jid uint64) (models.Jobs, error) {
+func (m *MockUserRepo) Jobbyjid(ctx context.Context, jid uint64) ([]models.Jobs, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Jobbyjid", ctx, jid)
-	ret0, _ := ret[0].(models.Jobs)
+	ret0, _ := ret[0].([]models.Jobs)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

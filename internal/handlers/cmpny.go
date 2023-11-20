@@ -35,7 +35,7 @@ func (h *handler) ViewCompany(c *gin.Context) {
 
 	cid, err := strconv.ParseUint(id, 10, 64)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error":http.StatusText(http.StatusBadRequest)})
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": http.StatusText(http.StatusBadRequest)})
 		return
 	}
 
@@ -104,9 +104,7 @@ func (h *handler) AddCompany(c *gin.Context) {
 	err := json.NewDecoder(c.Request.Body).Decode(&companyData)
 	if err != nil {
 		log.Error().Err(err).Str("trace id", traceid)
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": "please provide valid name, location and field",
-		})
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"msg": http.StatusText(http.StatusInternalServerError)})
 		return
 	}
 

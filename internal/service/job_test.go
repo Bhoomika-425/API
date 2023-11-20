@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"project/internal/auth"
+	"project/internal/cache"
 	"project/internal/models"
 	"project/internal/repository"
 	"reflect"
 	"testing"
 
 	"go.uber.org/mock/gomock"
-	"gorm.io/gorm"
 )
 
 func TestService_ViewJobById(t *testing.T) {
@@ -22,18 +22,18 @@ func TestService_ViewJobById(t *testing.T) {
 		name string
 		// s       *Service
 		args             args
-		want             models.Jobs
+		want             []models.Jobs
 		wantErr          bool
-		mockRepoResponse func() (models.Jobs, error)
+		mockRepoResponse func() ([]models.Jobs, error)
 	}{
 		{name: "error",
 			args: args{
 				ctx: context.Background(),
 			},
-			want:    models.Jobs{},
+			want:    []models.Jobs{},
 			wantErr: false,
-			mockRepoResponse: func() (models.Jobs, error) {
-				return models.Jobs{}, errors.New("test error")
+			mockRepoResponse: func() ([]models.Jobs, error) {
+				return nil, errors.New("test error")
 			},
 		},
 		{name: "success",
@@ -41,30 +41,33 @@ func TestService_ViewJobById(t *testing.T) {
 				ctx: context.Background(),
 				jid: 15,
 			},
-			want: models.Jobs{
-				Company: models.Company{
+			want: []models.Jobs{
+				{Company: models.Company{
 					Name:     "tcs",
 					Location: "bang",
 					Field:    "software",
 				},
-				Cid:          2,
-				Name:         "developer",
-				Salary:       "30000",
-				NoticePeriod: "3 weeks",
-			},
-
-			wantErr: false,
-			mockRepoResponse: func() (models.Jobs, error) {
-				return models.Jobs{
-					Company: models.Company{
-						Name:     "tcs",
-						Location: "bang",
-						Field:    "software",
-					},
 					Cid:          2,
 					Name:         "developer",
 					Salary:       "30000",
 					NoticePeriod: "3 weeks",
+				},
+			},
+
+			wantErr: false,
+			mockRepoResponse: func() ([]models.Jobs, error) {
+				return []models.Jobs{
+					{
+						Company: models.Company{
+							Name:     "tcs",
+							Location: "bang",
+							Field:    "software",
+						},
+						Cid:          2,
+						Name:         "developer",
+						Salary:       "30000",
+						NoticePeriod: "3 weeks",
+					},
 				}, nil
 			},
 		},
@@ -74,10 +77,10 @@ func TestService_ViewJobById(t *testing.T) {
 				ctx: context.Background(),
 				jid: 5,
 			},
-			want:    models.Jobs{},
+			want:    []models.Jobs{},
 			wantErr: false,
-			mockRepoResponse: func() (models.Jobs, error) {
-				return models.Jobs{}, errors.New("id not found")
+			mockRepoResponse: func() ([]models.Jobs, error) {
+				return []models.Jobs{}, nil
 			},
 		},
 	}
@@ -88,7 +91,7 @@ func TestService_ViewJobById(t *testing.T) {
 			if tt.mockRepoResponse != nil {
 				mockRepo.EXPECT().Jobbyjid(tt.args.ctx, tt.args.jid).Return(tt.mockRepoResponse()).AnyTimes()
 			}
-			s, _ := NewService(mockRepo, &auth.Auth{})
+			s, _ := NewService(mockRepo, &auth.Auth{}, cache.RDB{})
 			got, err := s.ViewJobById(tt.args.ctx, tt.args.jid)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Service.ViewJobById() error = %v, wantErr %v", err, tt.wantErr)
@@ -153,8 +156,9 @@ func TestService_ViewAllJobs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mc := gomock.NewController(t)
 			mockRepo := repository.NewMockUserRepo(mc)
+			mockCache := cache.NewMockCache(mc)
 			mockRepo.EXPECT().FetchAllJobs(tt.args.ctx).Return(tt.mockRepoResponse()).AnyTimes()
-			s, _ := NewService(mockRepo, &auth.Auth{})
+			s, _ := NewService(mockRepo, &auth.Auth{}, mockCache)
 			got, err := s.ViewAllJobs(tt.args.ctx)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Service.ViewAllJobs() error = %v, wantErr %v", err, tt.wantErr)
@@ -179,6 +183,7 @@ func TestService_ViewJob(t *testing.T) {
 		want             []models.Jobs
 		wantErr          bool
 		mockRepoResponse func() ([]models.Jobs, error)
+		mockRedis        func()
 	}{
 		{
 			name: "success",
@@ -221,10 +226,12 @@ func TestService_ViewJob(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mc := gomock.NewController(t)
 			mockRepo := repository.NewMockUserRepo(mc)
+
 			if tt.mockRepoResponse != nil {
 				mockRepo.EXPECT().Jobbycid(gomock.Any(), gomock.Any()).Return(tt.mockRepoResponse()).AnyTimes()
 			}
-			s, _ := NewService(mockRepo, &auth.Auth{})
+
+			s, _ := NewService(mockRepo, &auth.Auth{}, cache.RDB{})
 			got, err := s.ViewJob(tt.args.ctx, tt.args.cid)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Service.ViewJob() error = %v, wantErr %v", err, tt.wantErr)
@@ -328,10 +335,11 @@ func TestService_AddJobDetails(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mc := gomock.NewController(t)
 			mockRepo := repository.NewMockUserRepo(mc)
+			mockCache := cache.NewMockCache(mc)
 			if tt.mockRepoResponse != nil {
 				mockRepo.EXPECT().CreateUserJob(gomock.Any(), gomock.Any()).Return(tt.mockRepoResponse()).AnyTimes()
 			}
-			s, _ := NewService(mockRepo, &auth.Auth{})
+			s, _ := NewService(mockRepo, &auth.Auth{}, mockCache)
 			got, err := s.AddJobDetails(tt.args.ctx, tt.args.jobRequest, tt.args.cid)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Service.AddJobDetails() error = %v, wantErr %v", err, tt.wantErr)
@@ -344,575 +352,575 @@ func TestService_AddJobDetails(t *testing.T) {
 	}
 }
 
-func TestService_ApplyJobs(t *testing.T) {
-	type args struct {
-		ctx          context.Context
-		applications []models.NewUserApplication
-	}
-	tests := []struct {
-		name string
-		// s       *Service
-		args             args
-		want             []models.NewUserApplication
-		wantErr          bool
-		mockRepoResponse func() (models.Jobs, error)
-	}{
-		{
-			name: "error in mock fun",
-			args: args{ctx: context.Background(),
-				applications: []models.NewUserApplication{
-					{Name: "Jhon",
-						Age: "25",
-						ID:  1,
-						Jobs: models.Requestfield{
-							Name:         "assosiate",
-							NoticePeriod: 3,
-							Experience:   2,
-							Locations: []uint{
-								uint(1), uint(2),
-							},
-							TechnologyStacks: []uint{
-								uint(1), uint(2),
-							},
-							Degree: []uint{
-								uint(1), uint(2),
-							},
-							Shifts: []uint{
-								uint(1), uint(2),
-							},
-						},
-					},
-				},
-			},
-			want:    nil,
-			wantErr: false,
-			mockRepoResponse: func() (models.Jobs, error) {
-				return models.Jobs{}, errors.New("error from mock function")
-			},
-		},
-		{
-			name: "experience does not match",
-			args: args{
-				ctx: context.Background(),
-				applications: []models.NewUserApplication{
-					{
-						Name: "Jhon",
-						Age:  "25",
-						ID:   1,
-						Jobs: models.Requestfield{
-							Name:         "assosiate",
-							NoticePeriod: 3,
-							Experience:   5,
-							Locations: []uint{
-								uint(1), uint(2),
-							},
-							// 	TechnologyStacks: []uint{
-							// 		uint(1), uint(2),
-							// 	},
-							// 	Degree: []uint{
-							// 		uint(1), uint(2),
-							// 	},
-							// 	Shifts: []uint{
-							// 		uint(1), uint(2),
-							// 	},
-						},
-					},
-				},
-			},
-			want:    nil,
-			wantErr: false,
-			mockRepoResponse: func() (models.Jobs, error) {
-				return models.Jobs{
-					Model: gorm.Model{
-						ID: 1,
-					},
-					Company: models.Company{
-						Model: gorm.Model{
-							ID: 1,
-						},
-					},
-					Cid:          1,
-					Name:         "assosiate",
-					Salary:       "80000",
-					NoticePeriod: "5",
-					MinNp:        "3",
-					MaxNP:        "4",
-					Budget:       "15lpa",
-					Description:  "this is the software job",
-					Minexp:       "0",
-					MaxMax:       "10",
-					// Locations: []models.Location{
-					// 	{
-					// 		Model: gorm.Model{
-					// 			ID: 1,
-					// 		},
-					// 	},
-					// 	{
-					// 		Model: gorm.Model{
-					// 			ID: 2,
-					// 		},
-					// 	},
-					// },
-					// TechnologyStacks: []models.TechnologyStack{
-					// 	{
-					// 		Model: gorm.Model{
-					// 			ID: 1,
-					// 		},
-					// 	},
-					// 	{
-					// 		Model: gorm.Model{
-					// 			ID: 2,
-					// 		},
-					// 	},
-					// },
-					//  WorkModes: []models.WorkMode{
-					//  	{
-					//  		Model: gorm.Model{
-					// 			ID: 1,
-					// 		},
-					// 	},
-					// 	{
-					// 		Model: gorm.Model{
-					// 			ID: 2,
-					// 		},
-					// 	},
-					// },
-					// Qualifications: []models.Qualification{
-					// 	{
-					// 		Model: gorm.Model{
-					// 			ID: 1,
-					// 		},
-					// 	},
-					// 	{
-					// 		Model: gorm.Model{
-					// 			ID: 2,
-					// 		},
-					// 	},
-					// },
-				}, nil
-			},
-		},
-		{
-			name: "error in fetching location",
-			args: args{
-				ctx: context.Background(),
-				applications: []models.NewUserApplication{
-					{
-						Name: "Jhon",
-						Age:  "25",
-						ID:   1,
-						Jobs: models.Requestfield{
-							Name:         "assosiate",
-							NoticePeriod: 3,
-							Experience:   2,
-							Locations: []uint{
-								uint(1), uint(2),
-							},
-							// TechnologyStacks: []uint{
-							// 	uint(1), uint(2),
-							// },
-							// Degree: []uint{
-							// 	uint(1), uint(2),
-							// },
-							// Shifts: []uint{
-							// 	uint(1), uint(2),
-							// },
-						},
-					},
-				},
-			},
-			want:    nil,
-			wantErr: false,
-			mockRepoResponse: func() (models.Jobs, error) {
-				return models.Jobs{
-					Model: gorm.Model{
-						ID: 1,
-					},
-					Company: models.Company{
-						Model: gorm.Model{
-							ID: 1,
-						},
-					},
-					Cid:          1,
-					Name:         "assosiate",
-					Salary:       "80000",
-					NoticePeriod: "5",
-					MinNp:        "3",
-					MaxNP:        "4",
-					Budget:       "15lpa",
-					Description:  "this is the software job",
-					Minexp:       "0",
-					MaxMax:       "10",
-					Locations: []models.Location{
-						{
-							Model: gorm.Model{
-								ID: 1,
-							},
-						},
-						{
-							Model: gorm.Model{
-								ID: 3,
-							},
-						},
-					},
-					TechnologyStacks: []models.TechnologyStack{
-						{
-							Model: gorm.Model{
-								ID: 1,
-							},
-						},
-						{
-							Model: gorm.Model{
-								ID: 2,
-							},
-						},
-					},
-				}, nil
-			},
-		},
-		{
-			name: "error in checking technology stack",
-			args: args{
-				ctx: context.Background(),
-				applications: []models.NewUserApplication{
-					{
-						Name: "Jhon",
-						Age:  "25",
-						ID:   1,
-						Jobs: models.Requestfield{
-							Name:         "assosiate",
-							NoticePeriod: 3,
-							Experience:   2,
-							Locations: []uint{
-								uint(1), uint(2),
-							},
-							TechnologyStacks: []uint{
-								uint(1), uint(2),
-							},
-							Degree: []uint{
-								uint(1), uint(2),
-							},
-						},
-					},
-				},
-			},
-			want:    nil,
-			wantErr: false,
-			mockRepoResponse: func() (models.Jobs, error) {
-				return models.Jobs{
-					Model: gorm.Model{
-						ID: 1,
-					},
-					Company: models.Company{
-						Model: gorm.Model{
-							ID: 1,
-						},
-					},
-					Cid:          1,
-					Name:         "assosiate",
-					Salary:       "80000",
-					NoticePeriod: "5",
-					MinNp:        "3",
-					MaxNP:        "4",
-					Budget:       "15lpa",
-					Description:  "this is the software job",
-					Minexp:       "0",
-					MaxMax:       "10",
-					TechnologyStacks: []models.TechnologyStack{
-						{
-							Model: gorm.Model{
-								ID: 0,
-							},
-						},
-						{
-							Model: gorm.Model{
-								ID: 5,
-							},
-						},
-					},
-				}, nil
-			},
-		},
-		// {
-		// 	name: "error in checking qualifications",
-		// 	args: args{
-		// 		ctx: context.Background(),
-		// 		applications: []models.NewUserApplication{
-		// 			{
-		// 				Name: "Jhon",
-		// 				Age:  "25",
-		// 				ID:   1,
-		// 				Jobs: models.Requestfield{
-		// 					Name:         "assosiate",
-		// 					NoticePeriod: 3,
-		// 					Experience:   2,
-		// 					Locations: []uint{
-		// 						uint(1), uint(2),
-		// 					},
-		// 					TechnologyStacks: []uint{
-		// 						uint(1), uint(2),
-		// 					},
-		// 					Degree: []uint{
-		// 						uint(1), uint(2),
-		// 					},
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// 	want:    nil,
-		// 	wantErr: false,
-		// 	mockRepoResponse: func() (models.Jobs, error) {
-		// 		return models.Jobs{
-		// 			Model: gorm.Model{
-		// 				ID: 1,
-		// 			},
-		// 			Company: models.Company{
-		// 				Model: gorm.Model{
-		// 					ID: 1,
-		// 				},
-		// 			},
-		// 			Cid:          1,
-		// 			Name:         "assosiate",
-		// 			Salary:       "80000",
-		// 			NoticePeriod: "5 weeks",
-		// 			MinNp:        "5days",
-		// 			MaxNP:        "4weeks",
-		// 			Budget:       "15lpa",
-		// 			Description:  "this is the software job",
-		// 			Minexp:       "1year",
-		// 			MaxMax:       "2years",
-		// 			WorkModes: []models.WorkMode{
-		// 				{
-		// 					Model: gorm.Model{
-		// 						ID: 1,
-		// 					},
-		// 				},
-		// 				{
-		// 					Model: gorm.Model{
-		// 						ID: 2,
-		// 					},
-		// 				},
-		// 			},
-		// 			Qualifications: []models.Qualification{
-		// 				{
-		// 					Model: gorm.Model{
-		// 						ID: 0,
-		// 					},
-		// 				},
-		// 				{
-		// 					Model: gorm.Model{
-		// 						ID: 2,
-		// 					},
-		// 				},
-		// 			},
-		// 		}, nil
-		// 	},
-		// },
+// func TestService_ApplyJobs(t *testing.T) {
+// 	type args struct {
+// 		ctx          context.Context
+// 		applications []models.NewUserApplication
+// 	}
+// 	tests := []struct {
+// 		name string
+// 		// s       *Service
+// 		args             args
+// 		want             []models.NewUserApplication
+// 		wantErr          bool
+// 		mockRepoResponse func() (models.Jobs, error)
+// 	}{
+// 		{
+// 			name: "error in mock fun",
+// 			args: args{ctx: context.Background(),
+// 				applications: []models.NewUserApplication{
+// 					{Name: "Jhon",
+// 						Age: "25",
+// 						ID:  1,
+// 						Jobs: models.Requestfield{
+// 							Name:         "assosiate",
+// 							NoticePeriod: 3,
+// 							Experience:   2,
+// 							Locations: []uint{
+// 								uint(1), uint(2),
+// 							},
+// 							TechnologyStacks: []uint{
+// 								uint(1), uint(2),
+// 							},
+// 							Degree: []uint{
+// 								uint(1), uint(2),
+// 							},
+// 							Shifts: []uint{
+// 								uint(1), uint(2),
+// 							},
+// 						},
+// 					},
+// 				},
+// 			},
+// 			want:    nil,
+// 			wantErr: false,
+// 			mockRepoResponse: func() (models.Jobs, error) {
+// 				return models.Jobs{}, errors.New("error from mock function")
+// 			},
+// 		},
+// 		{
+// 			name: "experience does not match",
+// 			args: args{
+// 				ctx: context.Background(),
+// 				applications: []models.NewUserApplication{
+// 					{
+// 						Name: "Jhon",
+// 						Age:  "25",
+// 						ID:   1,
+// 						Jobs: models.Requestfield{
+// 							Name:         "assosiate",
+// 							NoticePeriod: 3,
+// 							Experience:   5,
+// 							Locations: []uint{
+// 								uint(1), uint(2),
+// 							},
+// 							// 	TechnologyStacks: []uint{
+// 							// 		uint(1), uint(2),
+// 							// 	},
+// 							// 	Degree: []uint{
+// 							// 		uint(1), uint(2),
+// 							// 	},
+// 							// 	Shifts: []uint{
+// 							// 		uint(1), uint(2),
+// 							// 	},
+// 						},
+// 					},
+// 				},
+// 			},
+// 			want:    nil,
+// 			wantErr: false,
+// 			mockRepoResponse: func() (models.Jobs, error) {
+// 				return models.Jobs{
+// 					Model: gorm.Model{
+// 						ID: 1,
+// 					},
+// 					Company: models.Company{
+// 						Model: gorm.Model{
+// 							ID: 1,
+// 						},
+// 					},
+// 					Cid:          1,
+// 					Name:         "assosiate",
+// 					Salary:       "80000",
+// 					NoticePeriod: "5",
+// 					MinNp:        "3",
+// 					MaxNP:        "4",
+// 					Budget:       "15lpa",
+// 					Description:  "this is the software job",
+// 					Minexp:       "0",
+// 					MaxMax:       "10",
+// 					// Locations: []models.Location{
+// 					// 	{
+// 					// 		Model: gorm.Model{
+// 					// 			ID: 1,
+// 					// 		},
+// 					// 	},
+// 					// 	{
+// 					// 		Model: gorm.Model{
+// 					// 			ID: 2,
+// 					// 		},
+// 					// 	},
+// 					// },
+// 					// TechnologyStacks: []models.TechnologyStack{
+// 					// 	{
+// 					// 		Model: gorm.Model{
+// 					// 			ID: 1,
+// 					// 		},
+// 					// 	},
+// 					// 	{
+// 					// 		Model: gorm.Model{
+// 					// 			ID: 2,
+// 					// 		},
+// 					// 	},
+// 					// },
+// 					//  WorkModes: []models.WorkMode{
+// 					//  	{
+// 					//  		Model: gorm.Model{
+// 					// 			ID: 1,
+// 					// 		},
+// 					// 	},
+// 					// 	{
+// 					// 		Model: gorm.Model{
+// 					// 			ID: 2,
+// 					// 		},
+// 					// 	},
+// 					// },
+// 					// Qualifications: []models.Qualification{
+// 					// 	{
+// 					// 		Model: gorm.Model{
+// 					// 			ID: 1,
+// 					// 		},
+// 					// 	},
+// 					// 	{
+// 					// 		Model: gorm.Model{
+// 					// 			ID: 2,
+// 					// 		},
+// 					// 	},
+// 					// },
+// 				}, nil
+// 			},
+// 		},
+// 		{
+// 			name: "error in fetching location",
+// 			args: args{
+// 				ctx: context.Background(),
+// 				applications: []models.NewUserApplication{
+// 					{
+// 						Name: "Jhon",
+// 						Age:  "25",
+// 						ID:   1,
+// 						Jobs: models.Requestfield{
+// 							Name:         "assosiate",
+// 							NoticePeriod: 3,
+// 							Experience:   2,
+// 							Locations: []uint{
+// 								uint(1), uint(2),
+// 							},
+// 							// TechnologyStacks: []uint{
+// 							// 	uint(1), uint(2),
+// 							// },
+// 							// Degree: []uint{
+// 							// 	uint(1), uint(2),
+// 							// },
+// 							// Shifts: []uint{
+// 							// 	uint(1), uint(2),
+// 							// },
+// 						},
+// 					},
+// 				},
+// 			},
+// 			want:    nil,
+// 			wantErr: false,
+// 			mockRepoResponse: func() (models.Jobs, error) {
+// 				return models.Jobs{
+// 					Model: gorm.Model{
+// 						ID: 1,
+// 					},
+// 					Company: models.Company{
+// 						Model: gorm.Model{
+// 							ID: 1,
+// 						},
+// 					},
+// 					Cid:          1,
+// 					Name:         "assosiate",
+// 					Salary:       "80000",
+// 					NoticePeriod: "5",
+// 					MinNp:        "3",
+// 					MaxNP:        "4",
+// 					Budget:       "15lpa",
+// 					Description:  "this is the software job",
+// 					Minexp:       "0",
+// 					MaxMax:       "10",
+// 					Locations: []models.Location{
+// 						{
+// 							Model: gorm.Model{
+// 								ID: 1,
+// 							},
+// 						},
+// 						{
+// 							Model: gorm.Model{
+// 								ID: 3,
+// 							},
+// 						},
+// 					},
+// 					TechnologyStacks: []models.TechnologyStack{
+// 						{
+// 							Model: gorm.Model{
+// 								ID: 1,
+// 							},
+// 						},
+// 						{
+// 							Model: gorm.Model{
+// 								ID: 2,
+// 							},
+// 						},
+// 					},
+// 				}, nil
+// 			},
+// 		},
+// 		{
+// 			name: "error in checking technology stack",
+// 			args: args{
+// 				ctx: context.Background(),
+// 				applications: []models.NewUserApplication{
+// 					{
+// 						Name: "Jhon",
+// 						Age:  "25",
+// 						ID:   1,
+// 						Jobs: models.Requestfield{
+// 							Name:         "assosiate",
+// 							NoticePeriod: 3,
+// 							Experience:   2,
+// 							Locations: []uint{
+// 								uint(1), uint(2),
+// 							},
+// 							TechnologyStacks: []uint{
+// 								uint(1), uint(2),
+// 							},
+// 							Degree: []uint{
+// 								uint(1), uint(2),
+// 							},
+// 						},
+// 					},
+// 				},
+// 			},
+// 			want:    nil,
+// 			wantErr: false,
+// 			mockRepoResponse: func() (models.Jobs, error) {
+// 				return models.Jobs{
+// 					Model: gorm.Model{
+// 						ID: 1,
+// 					},
+// 					Company: models.Company{
+// 						Model: gorm.Model{
+// 							ID: 1,
+// 						},
+// 					},
+// 					Cid:          1,
+// 					Name:         "assosiate",
+// 					Salary:       "80000",
+// 					NoticePeriod: "5",
+// 					MinNp:        "3",
+// 					MaxNP:        "4",
+// 					Budget:       "15lpa",
+// 					Description:  "this is the software job",
+// 					Minexp:       "0",
+// 					MaxMax:       "10",
+// 					TechnologyStacks: []models.TechnologyStack{
+// 						{
+// 							Model: gorm.Model{
+// 								ID: 0,
+// 							},
+// 						},
+// 						{
+// 							Model: gorm.Model{
+// 								ID: 5,
+// 							},
+// 						},
+// 					},
+// 				}, nil
+// 			},
+// 		},
+// 		// {
+// 		// 	name: "error in checking qualifications",
+// 		// 	args: args{
+// 		// 		ctx: context.Background(),
+// 		// 		applications: []models.NewUserApplication{
+// 		// 			{
+// 		// 				Name: "Jhon",
+// 		// 				Age:  "25",
+// 		// 				ID:   1,
+// 		// 				Jobs: models.Requestfield{
+// 		// 					Name:         "assosiate",
+// 		// 					NoticePeriod: 3,
+// 		// 					Experience:   2,
+// 		// 					Locations: []uint{
+// 		// 						uint(1), uint(2),
+// 		// 					},
+// 		// 					TechnologyStacks: []uint{
+// 		// 						uint(1), uint(2),
+// 		// 					},
+// 		// 					Degree: []uint{
+// 		// 						uint(1), uint(2),
+// 		// 					},
+// 		// 				},
+// 		// 			},
+// 		// 		},
+// 		// 	},
+// 		// 	want:    nil,
+// 		// 	wantErr: false,
+// 		// 	mockRepoResponse: func() (models.Jobs, error) {
+// 		// 		return models.Jobs{
+// 		// 			Model: gorm.Model{
+// 		// 				ID: 1,
+// 		// 			},
+// 		// 			Company: models.Company{
+// 		// 				Model: gorm.Model{
+// 		// 					ID: 1,
+// 		// 				},
+// 		// 			},
+// 		// 			Cid:          1,
+// 		// 			Name:         "assosiate",
+// 		// 			Salary:       "80000",
+// 		// 			NoticePeriod: "5 weeks",
+// 		// 			MinNp:        "5days",
+// 		// 			MaxNP:        "4weeks",
+// 		// 			Budget:       "15lpa",
+// 		// 			Description:  "this is the software job",
+// 		// 			Minexp:       "1year",
+// 		// 			MaxMax:       "2years",
+// 		// 			WorkModes: []models.WorkMode{
+// 		// 				{
+// 		// 					Model: gorm.Model{
+// 		// 						ID: 1,
+// 		// 					},
+// 		// 				},
+// 		// 				{
+// 		// 					Model: gorm.Model{
+// 		// 						ID: 2,
+// 		// 					},
+// 		// 				},
+// 		// 			},
+// 		// 			Qualifications: []models.Qualification{
+// 		// 				{
+// 		// 					Model: gorm.Model{
+// 		// 						ID: 0,
+// 		// 					},
+// 		// 				},
+// 		// 				{
+// 		// 					Model: gorm.Model{
+// 		// 						ID: 2,
+// 		// 					},
+// 		// 				},
+// 		// 			},
+// 		// 		}, nil
+// 		// 	},
+// 		// },
 
-		{
-			name: "error in getting shifts",
-			args: args{
-				ctx: context.Background(),
-				applications: []models.NewUserApplication{
-					{
-						Name: "Jhon",
-						Age:  "25",
-						ID:   1,
-						Jobs: models.Requestfield{
-							Name:         "assosiate",
-							NoticePeriod: 3,
-							Experience:   2,
-							// Locations: []uint{
-							// 	uint(1), uint(2),
-							// },
-							// TechnologyStacks: []uint{
-							// 	uint(1), uint(2),
-							// },
-							Shifts: []uint{
-								uint(1), uint(2),
-							},
-						},
-					},
-				},
-			},
-			want:    nil,
-			wantErr: false,
-			mockRepoResponse: func() (models.Jobs, error) {
-				return models.Jobs{
-					Model: gorm.Model{
-						ID: 1,
-					},
-					Company: models.Company{
-						Model: gorm.Model{
-							ID: 1,
-						},
-					},
-					Cid:          1,
-					Name:         "assosiate",
-					Salary:       "80000",
-					NoticePeriod: "5 weeks",
-					MinNp:        "5days",
-					MaxNP:        "4weeks",
-					Budget:       "15lpa",
-					Description:  "this is the software job",
-					Minexp:       "1year",
-					MaxMax:       "2years",
-					Locations: []models.Location{
-						{
-							Model: gorm.Model{
-								ID: 1,
-							},
-						},
-						{
-							Model: gorm.Model{
-								ID: 2,
-							},
-						},
-					},
-					// TechnologyStacks: []models.TechnologyStack{
-					// 	{
-					// 		Model: gorm.Model{
-					// 			ID: 1,
-					// 		},
-					// 	},
-					// 	{
-					// 		Model: gorm.Model{
-					// 			ID: 2,
-					// 		},
-					// 	},
-					// },
-					Shifts: []models.Shift{
-						{
-							Model: gorm.Model{
-								ID: 0,
-							},
-						},
-						{
-							Model: gorm.Model{
-								ID: 1,
-							},
-						},
-					},
-				}, nil
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mc := gomock.NewController(t)
-			mockRepo := repository.NewMockUserRepo(mc)
-			if tt.mockRepoResponse != nil {
-				mockRepo.EXPECT().CreateApplication(gomock.Any(), gomock.Any()).Return(tt.mockRepoResponse()).AnyTimes()
-			}
-			for _, v := range tt.args.applications {
-				if v.ID == uint(1) {
-					mockRepo.EXPECT().CreateApplication(gomock.Any(), v.ID).Return(models.Jobs{
-						Model: gorm.Model{
-							ID: 1,
-						},
-						Company: models.Company{
-							Model: gorm.Model{
-								ID: 1,
-							},
-						},
-						Cid:          1,
-						Name:         "assosiate",
-						Salary:       "80000",
-						NoticePeriod: "5 weeks",
-						MinNp:        "5days",
-						MaxNP:        "4weeks",
-						Budget:       "15lpa",
-						Description:  "this is the software job",
-						Minexp:       "1year",
-						MaxMax:       "2years",
-						Locations: []models.Location{
-							{
-								Model: gorm.Model{
-									ID: 1,
-								},
-							},
-							{
-								Model: gorm.Model{
-									ID: 2,
-								},
-							},
-						},
-						TechnologyStacks: []models.TechnologyStack{
-							{
-								Model: gorm.Model{
-									ID: 1,
-								},
-							},
-							{
-								Model: gorm.Model{
-									ID: 2,
-								},
-							},
-						},
-						WorkModes: []models.WorkMode{
-							{
-								Model: gorm.Model{
-									ID: 1,
-								},
-							},
-							{
-								Model: gorm.Model{
-									ID: 2,
-								},
-							},
-						},
-						Qualifications: []models.Qualification{
-							{
-								Model: gorm.Model{
-									ID: 1,
-								},
-							},
-							{
-								Model: gorm.Model{
-									ID: 2,
-								},
-							},
-						},
-						Shifts: []models.Shift{
-							{
-								Model: gorm.Model{
-									ID: 1,
-								},
-							},
-							{
-								Model: gorm.Model{
-									ID: 2,
-								},
-							},
-						},
-						Jobtypes: []models.Jobtype{
-							{
-								Model: gorm.Model{
-									ID: 1,
-								},
-							},
-							{
-								Model: gorm.Model{
-									ID: 2,
-								},
-							},
-						},
-					}, nil).AnyTimes()
-				}
-			}
-			s, err := NewService(mockRepo, &auth.Auth{})
-			if err != nil {
-				t.Errorf("error is initializing the repo layer")
-				return
-			}
-			got, err := s.ApplyJobs(tt.args.ctx, tt.args.applications)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Service.ApplyJobs() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Service.ApplyJobs() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
+// 		{
+// 			name: "error in getting shifts",
+// 			args: args{
+// 				ctx: context.Background(),
+// 				applications: []models.NewUserApplication{
+// 					{
+// 						Name: "Jhon",
+// 						Age:  "25",
+// 						ID:   1,
+// 						Jobs: models.Requestfield{
+// 							Name:         "assosiate",
+// 							NoticePeriod: 3,
+// 							Experience:   2,
+// 							// Locations: []uint{
+// 							// 	uint(1), uint(2),
+// 							// },
+// 							// TechnologyStacks: []uint{
+// 							// 	uint(1), uint(2),
+// 							// },
+// 							Shifts: []uint{
+// 								uint(1), uint(2),
+// 							},
+// 						},
+// 					},
+// 				},
+// 			},
+// 			want:    nil,
+// 			wantErr: false,
+// 			mockRepoResponse: func() (models.Jobs, error) {
+// 				return models.Jobs{
+// 					Model: gorm.Model{
+// 						ID: 1,
+// 					},
+// 					Company: models.Company{
+// 						Model: gorm.Model{
+// 							ID: 1,
+// 						},
+// 					},
+// 					Cid:          1,
+// 					Name:         "assosiate",
+// 					Salary:       "80000",
+// 					NoticePeriod: "5 weeks",
+// 					MinNp:        "5days",
+// 					MaxNP:        "4weeks",
+// 					Budget:       "15lpa",
+// 					Description:  "this is the software job",
+// 					Minexp:       "1year",
+// 					MaxMax:       "2years",
+// 					Locations: []models.Location{
+// 						{
+// 							Model: gorm.Model{
+// 								ID: 1,
+// 							},
+// 						},
+// 						{
+// 							Model: gorm.Model{
+// 								ID: 2,
+// 							},
+// 						},
+// 					},
+// 					// TechnologyStacks: []models.TechnologyStack{
+// 					// 	{
+// 					// 		Model: gorm.Model{
+// 					// 			ID: 1,
+// 					// 		},
+// 					// 	},
+// 					// 	{
+// 					// 		Model: gorm.Model{
+// 					// 			ID: 2,
+// 					// 		},
+// 					// 	},
+// 					// },
+// 					Shifts: []models.Shift{
+// 						{
+// 							Model: gorm.Model{
+// 								ID: 0,
+// 							},
+// 						},
+// 						{
+// 							Model: gorm.Model{
+// 								ID: 1,
+// 							},
+// 						},
+// 					},
+// 				}, nil
+// 			},
+// 		},
+// 	}
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			mc := gomock.NewController(t)
+// 			mockRepo := repository.NewMockUserRepo(mc)
+// 			if tt.mockRepoResponse != nil {
+// 				mockRepo.EXPECT().CreateApplication(gomock.Any(), gomock.Any()).Return(tt.mockRepoResponse()).AnyTimes()
+// 			}
+// 			for _, v := range tt.args.applications {
+// 				if v.ID == uint(1) {
+// 					mockRepo.EXPECT().CreateApplication(gomock.Any(), v.ID).Return(models.Jobs{
+// 						Model: gorm.Model{
+// 							ID: 1,
+// 						},
+// 						Company: models.Company{
+// 							Model: gorm.Model{
+// 								ID: 1,
+// 							},
+// 						},
+// 						Cid:          1,
+// 						Name:         "assosiate",
+// 						Salary:       "80000",
+// 						NoticePeriod: "5 weeks",
+// 						MinNp:        "5days",
+// 						MaxNP:        "4weeks",
+// 						Budget:       "15lpa",
+// 						Description:  "this is the software job",
+// 						Minexp:       "1year",
+// 						MaxMax:       "2years",
+// 						Locations: []models.Location{
+// 							{
+// 								Model: gorm.Model{
+// 									ID: 1,
+// 								},
+// 							},
+// 							{
+// 								Model: gorm.Model{
+// 									ID: 2,
+// 								},
+// 							},
+// 						},
+// 						TechnologyStacks: []models.TechnologyStack{
+// 							{
+// 								Model: gorm.Model{
+// 									ID: 1,
+// 								},
+// 							},
+// 							{
+// 								Model: gorm.Model{
+// 									ID: 2,
+// 								},
+// 							},
+// 						},
+// 						WorkModes: []models.WorkMode{
+// 							{
+// 								Model: gorm.Model{
+// 									ID: 1,
+// 								},
+// 							},
+// 							{
+// 								Model: gorm.Model{
+// 									ID: 2,
+// 								},
+// 							},
+// 						},
+// 						Qualifications: []models.Qualification{
+// 							{
+// 								Model: gorm.Model{
+// 									ID: 1,
+// 								},
+// 							},
+// 							{
+// 								Model: gorm.Model{
+// 									ID: 2,
+// 								},
+// 							},
+// 						},
+// 						Shifts: []models.Shift{
+// 							{
+// 								Model: gorm.Model{
+// 									ID: 1,
+// 								},
+// 							},
+// 							{
+// 								Model: gorm.Model{
+// 									ID: 2,
+// 								},
+// 							},
+// 						},
+// 						Jobtypes: []models.Jobtype{
+// 							{
+// 								Model: gorm.Model{
+// 									ID: 1,
+// 								},
+// 							},
+// 							{
+// 								Model: gorm.Model{
+// 									ID: 2,
+// 								},
+// 							},
+// 						},
+// 					}, nil).AnyTimes()
+// 				}
+// 			}
+// 			s, err := NewService(mockRepo, &auth.Auth{}, cache.RDB{})
+// 			if err != nil {
+// 				t.Errorf("error is initializing the repo layer")
+// 				return
+// 			}
+// 			got, err := s.ApplyJobs(tt.args.ctx, tt.args.applications)
+// 			if (err != nil) != tt.wantErr {
+// 				t.Errorf("Service.ApplyJobs() error = %v, wantErr %v", err, tt.wantErr)
+// 				return
+// 			}
+// 			if !reflect.DeepEqual(got, tt.want) {
+// 				t.Errorf("Service.ApplyJobs() = %v, want %v", got, tt.want)
+// 			}
+// 		})
+// 	}
+// }

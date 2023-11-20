@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"project/internal/auth"
+	"project/internal/cache"
 	"project/internal/models"
 	"project/internal/repository"
 	"reflect"
@@ -30,7 +31,7 @@ func TestService_UserLogin(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				userData: models.NewUser{
-					Email:    "abc@gmail.com",
+					Email:    "abcmail.com",
 					Password: "bhoomi25",
 				},
 			},
@@ -55,20 +56,7 @@ func TestService_UserLogin(t *testing.T) {
 				return models.User{}, errors.New("error")
 			},
 		},
-		// 	{name:"success",
-		// 	args: args{
-		// 		ctx: context.Background(),
-		// 		userData: models.NewUser{
-		// 			Email:    "abc@gmail.com",
-		// 			Password: "bhoom#$@@#",
-		// 		},
-		// 	},
-		// 	want:    "bhoom#$@@#",
-		// 	wantErr: false,
-		// 	mockRepoResponse: func() (models.User, error) {
-		// 		return "$2y$10$zrRsu29vEQ2MqxKY2BEHC.D0irqpcYoNh/RusMRR16TiJQ5IaG0b6",
-		// 	},nil
-		// },
+		
 
 	}
 
@@ -79,7 +67,7 @@ func TestService_UserLogin(t *testing.T) {
 			if tt.mockRepoResponse != nil {
 				mockRepo.EXPECT().Userbyemail(tt.args.ctx, tt.args.userData.Email).Return(tt.mockRepoResponse()).AnyTimes()
 			}
-			s, _ := NewService(mockRepo, &auth.Auth{})
+			s, _ := NewService(mockRepo, &auth.Auth{}, cache.RDB{})
 			got, err := s.UserLogin(tt.args.ctx, tt.args.userData)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Service.UserLogin() error = %v, wantErr %v", err, tt.wantErr)
@@ -191,6 +179,9 @@ func TestService_UserSignup(t *testing.T) {
 
 			},
 		},
+
+
+
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -199,7 +190,7 @@ func TestService_UserSignup(t *testing.T) {
 			if tt.mockRepoResponse != nil {
 				mockRepo.EXPECT().CreateUser(gomock.Any(), gomock.Any()).Return(tt.mockRepoResponse()).AnyTimes()
 			}
-			s, _ := NewService(mockRepo, &auth.Auth{})
+			s, _ := NewService(mockRepo, &auth.Auth{}, cache.RDB{})
 			got, err := s.UserSignup(tt.args.ctx, tt.args.userData)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Service.UserSignup() error = %v, wantErr %v", err, tt.wantErr)

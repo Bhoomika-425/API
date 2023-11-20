@@ -24,11 +24,11 @@ type UserHandler interface {
 	ViewCompany(c *gin.Context)
 	ViewAllCompanies(c *gin.Context)
 	AddCompany(c *gin.Context)
-	JobByID(c *gin.Context)
+	JobByJID(c *gin.Context)
 	AllJobs(c *gin.Context)
-	Jobs(c *gin.Context)
+	JobsByCid(c *gin.Context)
 	CreateJobs(c *gin.Context)
-	JobAppById(c *gin.Context)
+	JobApplicationById(c *gin.Context)
 }
 
 func Newhandler(s service.UserService) (UserHandler, error) {
@@ -62,11 +62,21 @@ func (h *handler) Login(c *gin.Context) {
 		return
 	}
 
+	validate := validator.New()
+	err = validate.Struct(userData)
+	if err != nil {
+		log.Error().Err(err).Str("trace id", traceid)
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": "please provide valid  email and password",
+		})
+		return
+	}
+
 	token, err := h.service.UserLogin(ctx, userData)
 	if err != nil {
 		log.Error().Err(err).Str("trace id", traceid)
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
+			"error": http.StatusText(http.StatusBadRequest),
 		})
 		return
 	}

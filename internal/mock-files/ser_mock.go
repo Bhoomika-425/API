@@ -175,10 +175,10 @@ func (mr *MockUserServiceMockRecorder) ViewJob(ctx, cid any) *gomock.Call {
 }
 
 // ViewJobById mocks base method.
-func (m *MockUserService) ViewJobById(ctx context.Context, jid uint64) (models.Jobs, error) {
+func (m *MockUserService) ViewJobById(ctx context.Context, jid uint64) ([]models.Jobs, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ViewJobById", ctx, jid)
-	ret0, _ := ret[0].(models.Jobs)
+	ret0, _ := ret[0].([]models.Jobs)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
