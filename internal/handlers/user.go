@@ -29,6 +29,7 @@ type UserHandler interface {
 	JobsByCid(c *gin.Context)
 	CreateJobs(c *gin.Context)
 	JobApplicationById(c *gin.Context)
+	ForgotPassword(c *gin.Context)
 }
 
 func Newhandler(s service.UserService) (UserHandler, error) {
@@ -128,5 +129,50 @@ func (h *handler) SignUp(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, userDetails)
+
+}
+
+
+
+func(h *handler) ForgotPassword(c *gin.Context){
+	ctx:=c.Request.Context()
+	traceid, ok := ctx.Value(middleware.TraceIDKey).(string)
+	if !ok {
+		log.Error().Msg("traceid missing from context")
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"error": http.StatusText(http.StatusInternalServerError),
+		})
+		return
+	}
+	var Forgotpass models.Check
+	err := json.NewDecoder(c.Request.Body).Decode(&Forgotpass)
+	if err != nil {
+		log.Error().Err(err).Str("trace id", traceid)
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": "please provide valid  email",
+		})
+		return
+	}
+	validate := validator.New()
+	err = validate.Struct(Forgotpass)
+	if err != nil {
+		log.Error().Err(err).Str("trace id", traceid)
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": "please provide valid username, email and password",
+		})
+		return
+	}
+
+	pass,err:=h.service.ValidatingEmail(ctx,useremail)
+	if err != nil {
+		log.Error().Err(err).Str("trace id", traceid)
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, pass)
+
 
 }

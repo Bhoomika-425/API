@@ -1,12 +1,21 @@
 package database
 
-import "github.com/redis/go-redis/v9"
+import (
+	"fmt"
+	"project/config"
+	"strconv"
+
+	"github.com/redis/go-redis/v9"
+)
 
 func ConnectionToRedis() *redis.Client {
+	cfg := config.GetConfig()
+	PASS, _ := strconv.Atoi(cfg.Redisconfig.Database)
+
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       0,
+		Addr:     fmt.Sprintf(":%s", cfg.Redisconfig.Address),
+		Password: cfg.Redisconfig.Password,
+		DB:       PASS,
 	})
 	return rdb
 }

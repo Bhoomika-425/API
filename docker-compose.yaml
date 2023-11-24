@@ -1,0 +1,32 @@
+version: "3"
+
+services:
+ jobportal:
+    container_name: jobportal
+    image: "jobportal"
+    ports: 
+      - "8080:8080"
+    build: .
+    env_file:
+      - .env
+      - .job.env
+      - .auth.env
+      - .redis.env
+    depends_on:
+      - postgres
+    restart: always
+ postgres:
+    container_name: postgres
+    image: postgres
+    ports: 
+       - "5432:5432"
+    env_file:
+      - .db.env
+ redis:
+    container_name: redis
+    image: redis
+    ports:
+      - "6379:6379"
+    
+
+        

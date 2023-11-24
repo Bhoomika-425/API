@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"project/config"
 	"project/internal/auth"
 	"project/internal/cache"
 	"project/internal/database"
@@ -28,19 +29,25 @@ func main() {
 }
 
 func StartApp() error {
+    cfg:=config.GetConfig()
+  
+	log.Info().Msg("Config")
+
 	log.Info().Msg("intializing the authentication support")
-	privatePEM, err := os.ReadFile(`C:\job-portal-api-main\private.pem`)
-	if err != nil {
-		return fmt.Errorf("error in reading auth private key : %w", err) // %w is used for error wraping
-	}
+	// privatePEM, err := os.ReadFile(`private.pem`)
+	// if err != nil {
+	// 	return fmt.Errorf("error in reading auth private key : %w", err) // %w is used for error wraping
+	// }
+	privatePEM:=[]byte(cfg.Authconfig.PrivateKey)
 	privateKey, err := jwt.ParseRSAPrivateKeyFromPEM(privatePEM)
 	if err != nil {
 		return fmt.Errorf("error in parsing auth private key : %w", err) // %w is used for error wraping
 	}
-	publicPEM, err := os.ReadFile(`C:\job-portal-api-main\pubkey.pem`)
-	if err != nil {
-		return fmt.Errorf("error in reading auth public key : %w", err) // %w is used for error wraping
-	}
+	publicPEM:=[]byte(cfg.Authconfig.PublicKey)
+	// publicPEM, err := os.ReadFile(`pubkey.pem`)
+	// if err != nil {
+	// 	return fmt.Errorf("error in reading auth public key : %w", err) // %w is used for error wraping
+	// }
 	publicKey, err := jwt.ParseRSAPublicKeyFromPEM(publicPEM)
 	if err != nil {
 		return fmt.Errorf("error in parsing auth public key : %w", err) // %w is used for error wraping
@@ -82,10 +89,13 @@ func StartApp() error {
 
 	// initializing the http server
 	api := http.Server{
-		Addr:         ":8099",
-		ReadTimeout:  8000 * time.Second,
-		WriteTimeout: 800 * time.Second,
-		IdleTimeout:  800 * time.Second,
+		Addr:       fmt.Sprintf(":%s",cfg.AppConfig.Port),
+        ReadTimeout: time.Duration(cfg.AppConfig.ReadTimeout) *time.Second,
+		WriteTimeout: time.Duration(cfg.AppConfig.WriteTimeout) *time.Second,
+        IdleTimeout: time.Duration(cfg.AppConfig.IdleTimeout) *time.Second,
+		// ReadTimeout:  8000 * time.Second,
+		// WriteTimeout: 800 * time.Second,
+		// IdleTimeout:  800 * time.Second,
 		Handler:      handler.API(a, sc),
 	}
 

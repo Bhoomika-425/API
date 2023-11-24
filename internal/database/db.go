@@ -3,6 +3,7 @@ package database
 import (
 	"errors"
 	"fmt"
+	"project/config"
 	"project/internal/models"
 
 	"golang.org/x/crypto/bcrypt"
@@ -12,7 +13,8 @@ import (
 
 // db connection
 func DbConnection() (*gorm.DB, error) {
-	dsn := "host=localhost user=postgres password=admin dbname=postgres port=5432 sslmode=disable TimeZone=Asia/Shanghai"
+	cfg := config.GetConfig()
+	dsn := cfg.DBconfig.DbCon
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		return nil, err

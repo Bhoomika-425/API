@@ -27,3 +27,13 @@ func (r *Repo) Userbyemail(ctx context.Context, email string) (models.User, erro
 	return userDetails, nil
 
 }
+
+func (r *Repo) CheckEmail(ctx context.Context,email string)(models.Check,error){
+      var Checkmail models.Check
+	  res:=r.DB.Where("email=?",email).First(&Checkmail)
+	  if res.Error != nil{
+		log.Info().Err(res.Error).Send()
+		return models.Check{},errors.New("email is not valid")
+	  }
+	  return Checkmail,nil
+}

@@ -54,10 +54,17 @@ func (s Service) UserSignup(ctx context.Context, userData models.NewUser) (model
 		Username:     userData.Username,
 		Email:        userData.Email,
 		PasswordHash: hashedPass,
+		Dob:          userData.Dob,
 	}
 	userDetails, err = s.UserRepo.CreateUser(ctx, userDetails)
 	if err != nil {
 		return models.User{}, err
 	}
 	return userDetails, nil
+}
+
+
+func(s Service)ValidatingEmail(ctx context.Context, useremail models.Check)(models.User,error){
+
+	
 }

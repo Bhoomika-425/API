@@ -29,6 +29,7 @@ type UserService interface {
 	ViewAllJobs(ctx context.Context) ([]models.Jobs, error)
 	ViewJobById(ctx context.Context, jid uint64) ([]models.Jobs, error)
 	ApplyJobs(ctx context.Context, application []models.NewUserApplication) ([]models.NewUserApplication, error)
+	ValidatingEmail(ctx context.Context, useremail models.Check)(models.NewUser,error)
 }
 
 func NewService(userRepo repository.UserRepo, a auth.UserAuth, rdb cache.Cache) (UserService, error) {
