@@ -30,9 +30,9 @@ type DBconfig struct {
 }
 
 type Redisconfig struct{
-    Address string `env:"ADDRESS,required=true"`
-	Password string `env:"PASS,required=true"`
-	Database string `env:"DB,required=true"`
+    Address string `env:"REDIS_ADDR,required=true"`
+	Password string `env:"REDIS_PASSWORD,required=true"`
+	Database string `env:"REDIS_DB,required=true"`
 }
 
 type Authconfig struct{

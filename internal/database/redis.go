@@ -19,3 +19,4 @@ func ConnectionToRedis() *redis.Client {
 	})
 	return rdb
 }
+

@@ -39,9 +39,11 @@ func API(a auth.UserAuth, svc service.UserService) *gin.Engine {
 
 	r.GET("/viewjob/:cid", m.Authenticate(h.JobsByCid)) //
 
-	r.GET("/jobs/:id", m.Authenticate(h.JobByJID))     //
+	r.GET("/jobs/:id", m.Authenticate(h.JobByJID)) //
 
 	r.POST("/jobApp", m.Authenticate(h.JobApplicationById)) //null
+	r.POST("/forgotpassword", (h.ForgotPassword))
+	r.POST("/setpassword", (h.AddingNewPassword))
 	return r
 
 }

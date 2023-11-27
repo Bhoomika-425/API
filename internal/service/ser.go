@@ -18,7 +18,7 @@ type Service struct {
 //go:generate mockgen -source=ser.go -destination=mock-files/ser_mock.go -package=mock_files
 type UserService interface {
 	UserSignup(ctx context.Context, userData models.NewUser) (models.User, error)
-	UserLogin(ctx context.Context, userData models.NewUser) (string, error)
+	UserLogin(ctx context.Context, userData models.UserLogin) (string, error)
 
 	AddCompanyDetails(ctx context.Context, companyData models.Company) (models.Company, error)
 	ViewAllCompanies(ctx context.Context) ([]models.Company, error)
@@ -29,7 +29,8 @@ type UserService interface {
 	ViewAllJobs(ctx context.Context) ([]models.Jobs, error)
 	ViewJobById(ctx context.Context, jid uint64) ([]models.Jobs, error)
 	ApplyJobs(ctx context.Context, application []models.NewUserApplication) ([]models.NewUserApplication, error)
-	ValidatingEmail(ctx context.Context, useremail models.Check)(models.NewUser,error)
+	ValidatingEmail(ctx context.Context, useremail models.Check)(string,error)
+	RecoveringPassword(ctx context.Context,Recoverpass models.Valid)(error)
 }
 
 func NewService(userRepo repository.UserRepo, a auth.UserAuth, rdb cache.Cache) (UserService, error) {

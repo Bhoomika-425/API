@@ -30,6 +30,7 @@ type UserHandler interface {
 	CreateJobs(c *gin.Context)
 	JobApplicationById(c *gin.Context)
 	ForgotPassword(c *gin.Context)
+	AddingNewPassword(c *gin.Context)
 }
 
 func Newhandler(s service.UserService) (UserHandler, error) {
@@ -52,7 +53,7 @@ func (h *handler) Login(c *gin.Context) {
 		return
 	}
 
-	var userData models.NewUser
+	var userData models.UserLogin
 
 	err := json.NewDecoder(c.Request.Body).Decode(&userData)
 	if err != nil {
@@ -132,10 +133,8 @@ func (h *handler) SignUp(c *gin.Context) {
 
 }
 
-
-
-func(h *handler) ForgotPassword(c *gin.Context){
-	ctx:=c.Request.Context()
+func (h *handler) ForgotPassword(c *gin.Context) {
+	ctx := c.Request.Context()
 	traceid, ok := ctx.Value(middleware.TraceIDKey).(string)
 	if !ok {
 		log.Error().Msg("traceid missing from context")
@@ -163,7 +162,7 @@ func(h *handler) ForgotPassword(c *gin.Context){
 		return
 	}
 
-	pass,err:=h.service.ValidatingEmail(ctx,useremail)
+	pass, err := h.service.ValidatingEmail(ctx, Forgotpass)
 	if err != nil {
 		log.Error().Err(err).Str("trace id", traceid)
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
@@ -173,6 +172,38 @@ func(h *handler) ForgotPassword(c *gin.Context){
 	}
 
 	c.JSON(http.StatusOK, pass)
+}
 
+func (h *handler) AddingNewPassword(c *gin.Context) {
+	ctx := c.Request.Context()
+	traceid, ok := ctx.Value(middleware.TraceIDKey).(string)
+	if !ok {
+		log.Error().Msg("traceid missing from context")
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"error": http.StatusText(http.StatusInternalServerError),
+		})
+		return
+	}
+	var Addpass models.Valid
+	err := json.NewDecoder(c.Request.Body).Decode(&Addpass)
+	if err != nil {
+		log.Error().Err(err).Str("trace id", traceid)
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": "please provide valid otp",
+		})
+		return
+	}
 
+	err = h.service.RecoveringPassword(ctx, Addpass)
+	if err != nil {
+		log.Error().Err(err).Str("trace id", traceid)
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Password reset is successful",
+	})
 }
