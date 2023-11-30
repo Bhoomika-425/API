@@ -9,10 +9,10 @@ import (
 var cfg Config
 
 type Config struct {
-	AppConfig Appconfig
-	DBconfig  DBconfig
+	AppConfig   Appconfig
+	DBconfig    DBconfig
 	Redisconfig Redisconfig
-	Authconfig Authconfig
+	Authconfig  Authconfig
 }
 
 type Appconfig struct {
@@ -29,17 +29,17 @@ type DBconfig struct {
 	DbCon string `env:"DB_DSN,required=true"`
 }
 
-type Redisconfig struct{
-    Address string `env:"REDIS_ADDR,required=true"`
-	Password string `env:"REDIS_PASSWORD,required=true"`
-	Database string `env:"REDIS_DB,required=true"`
+type Redisconfig struct {
+	Host     string `env:"REDIS_HOST,default=localhost"`
+	Address  string `env:"REDIS_ADDR,default=6379"`
+	Password string `env:"REDIS_PASSWORD"`
+	Database string `env:"REDIS_DB"`
 }
 
-type Authconfig struct{
-	PublicKey string `env:"PUBLICKEY,required=true"`
-	PrivateKey string  `env:"PRIVATEKEY,required=true"`
+type Authconfig struct {
+	PublicKey  string `env:"PUBLICKEY,required=true"`
+	PrivateKey string `env:"PRIVATEKEY,required=true"`
 }
-
 
 func init() {
 	_, err := env.UnmarshalFromEnviron(&cfg)

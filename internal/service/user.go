@@ -72,7 +72,11 @@ func (s Service) ValidatingEmail(ctx context.Context, useremail models.Check) (s
 		return "", errors.New("email not matched")
 	}
 	a := GenerateOTP(useremail.Email)
-	return a, nil
+	_, err = s.rdb.Saveotptoredis(ctx, useremail.Email, a)
+	if err != nil {
+		return "generate otp failed", err
+	}
+	return "your otp is sent " + useremail.Email + " successfully", nil
 
 }
 
@@ -82,6 +86,7 @@ func GenerateOTP(email string) string {
 	max := 999999
 	otp := rand.Intn(max-min+1) + min
 	verificationcode := strconv.Itoa(otp)
+
 	from := "bhoomikasabalur@gmail.com"
 	password := "hghf uxjo oqgf qmzx"
 
@@ -108,7 +113,7 @@ func GenerateOTP(email string) string {
 
 	fmt.Println("Email sent successfully!")
 
-	return "successfully sent otp"
+	return verificationcode
 
 }
 
@@ -120,7 +125,7 @@ func (s Service) RecoveringPassword(ctx context.Context, Recoverpass models.Vali
 	}
 
 	if verifycode != Recoverpass.Verifiedotp {
-		return errors.New("Verification of otp is not correct")
+		return errors.New("verification of otp is not correct")
 	}
 
 	if Recoverpass.Password != Recoverpass.Confirmpass {

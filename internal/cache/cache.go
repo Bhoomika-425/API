@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"project/internal/models"
 	"strconv"
 	"time"
@@ -48,13 +49,16 @@ func (r RDB) GettingCacheData(ctx context.Context, jid uint) (string, error) {
 func (r RDB) Saveotptoredis(ctx context.Context, email string, otp string) (string, error) {
 	err := r.rdb.Set(ctx, email, otp, time.Minute*5).Err()
 	if err != nil {
+
 		log.Error().Err(err).Str("email", email).Msg("error while saving the otp to Redis")
 		return "", err
 	}
+	fmt.Println("your password saved in cache")
 	return otp, nil
 }
 func (r RDB) Getaotp(ctx context.Context, email string) (string, error) {
 	s, err := r.rdb.Get(ctx, email).Result()
+
 	return s, err
 }
 
